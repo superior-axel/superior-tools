@@ -14,12 +14,16 @@ type ResultRow = {
   'Discount Rate': number
 }
 
+interface ApiResponse {
+  results: ResultRow[]
+}
+
 export default function HomePage() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState<ResultRow[]>([])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLoading(true)
     setResults([])
@@ -31,7 +35,7 @@ export default function HomePage() {
         body: JSON.stringify({ input })
       })
 
-      const data = await response.json()
+      const data: ApiResponse = await response.json()
       setResults(data.results || [])
     } catch (err) {
       console.error('Failed:', err)
@@ -76,15 +80,16 @@ export default function HomePage() {
               </thead>
               <tbody>
                 {results.map((row, i) => (
-                  <tr key={i} className="border-t">
-                    {Object.values(row).map((value, j) => (
-                      <td key={j} className="px-4 py-2 whitespace-nowrap">
+                    <tr key={i} className="border-t">
+                    {(Object.values(row) as (string | number)[]).map((value, j) => (
+                        <td key={j} className="px-4 py-2 whitespace-nowrap">
                         {typeof value === 'number' ? value.toFixed(2) : value}
-                      </td>
+                        </td>
                     ))}
-                  </tr>
+                    </tr>
                 ))}
-              </tbody>
+                </tbody>
+
             </table>
           </div>
         )}
