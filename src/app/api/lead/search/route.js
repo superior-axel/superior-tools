@@ -71,7 +71,9 @@ async function fetchLeadByName(name) {
     if (!res.ok) return [];
 
     const data = await res.json();
-    return data.leads;
+
+    return (data.leads || []).filter(lead => lead.track_state === 13 || lead.track_state === 14);
+
   } catch (err) {
     console.error(`Error fetching leads for ${name}:`, err.message);
     return [];
