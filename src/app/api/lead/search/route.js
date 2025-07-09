@@ -10,10 +10,21 @@ export async function GET(req) {
       );
     }
 
-    const inputNames = raw
-      .split(/[\n,;]+/)
-      .map(n => n.trim())
-      .filter(n => n.length > 0);
+    const inputNames = Array.from(new Set(
+      raw
+        .split(/[\t\n]+| {2,}/)               // split on tabs, newlines, or 2+ spaces
+        .flatMap(entry =>
+          entry
+            .split(/\/| - | -|-/)             // split names on "/", " - ", "-" and variations
+            .map(name => name.trim())
+            .filter(name => {
+              // Strip trailing "-D"
+              if (name.endsWith("-D")) name = name.slice(0, -2).trim();
+              // Only keep full names with at least two words
+              return name.split(" ").length >= 2;
+            })
+        )
+    ));
 
     const results = [];
 
