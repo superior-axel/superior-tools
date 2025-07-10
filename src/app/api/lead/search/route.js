@@ -1,7 +1,7 @@
 export async function GET(req) {
   try {
-    const authHeader = req.headers.get("authorization");
-    const expectedToken = process.env.LEAD_API_SECRET;
+    const authHeader = req.headers.get("Authorization");
+    const expectedToken = process.env.API_SECRET;
 
     if (!authHeader || authHeader !== `Bearer ${expectedToken}`) {
       return jsonError("Unauthorized", 401);
