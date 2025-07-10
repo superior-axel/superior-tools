@@ -19,7 +19,7 @@ export async function GET(req) {
       );
     }
 
-    const inputNames = Array.from(new Set(
+  const inputNames = Array.from(new Set(
       raw
         .split(/[\t\n]+| {2,}/)               // split on tabs, newlines, or 2+ spaces
         .flatMap(entry =>
@@ -81,7 +81,8 @@ async function fetchLeadByName(name) {
 
     const data = await res.json();
 
-    return (data.leads || []).filter(lead => lead.track_state === 13 || lead.track_state === 14);
+    const allowedTrackStates = [4, 13, 14];
+    return (data.leads || []).filter(lead => allowedTrackStates.includes(lead.track_state));
 
   } catch (err) {
     console.error(`Error fetching leads for ${name}:`, err.message);
