@@ -1,6 +1,15 @@
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
+    const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
+
+    if (authHeader !== `Bearer ${process.env.API_SECRET}`) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const raw = searchParams.get('names');
 
     if (!raw || raw.trim().length < 3) {
