@@ -1,60 +1,83 @@
 export async function GET(req) {
   try {
-    const { searchParams } = new URL(req.url);
-    const raw = searchParams.get('names');
+    const authHeader = req.headers.get("authorization");
+    const expectedToken = process.env.LEAD_API_SECRET;
 
-    if (!raw || raw.trim().length < 3) {
-      return new Response(
-        JSON.stringify({ error: 'Missing or invalid names' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+    if (!authHeader || authHeader !== `Bearer ${expectedToken}`) {
+      return jsonError("Unauthorized", 401);
     }
 
-    const inputNames = Array.from(new Set(
-      raw
-        .split(/[\t\n]+| {2,}/)               // split on tabs, newlines, or 2+ spaces
-        .flatMap(entry =>
-          entry
-            .split(/\/| - | -|-/)             // split names on "/", " - ", "-" and variations
-            .map(name => name.trim())
-            .filter(name => {
-              // Strip trailing "-D"
-              if (name.endsWith("-D")) name = name.slice(0, -2).trim();
-              // Only keep full names with at least two words
-              return name.split(" ").length >= 2;
-            })
-        )
-    ));
+    const url = new URL(req.url);
+    const raw = url.searchParams.get("names");
 
-    const results = [];
-
-    for (const name of inputNames) {
-      const parts = name.split(/\s+/);
-      let leads = [];
-      let flag = 'no match';
-
-      for (let i = parts.length; i > 0; i--) {
-        const sub = parts.slice(0, i).join(' ');
-        const fetched = await fetchLeadByName(sub);
-
-        if (fetched.length > 0) {
-          leads = fetched;
-          flag = i === parts.length ? 'exact match' : 'partial match';
-          break;
-        }
-      }
-
-      results.push({ query: name, status: flag, leads });
+    if (!isValidNamesParam(raw)) {
+      return jsonError("Missing or invalid names", 400);
     }
+
+    const inputNames = parseInputNames(raw);
+    const results = await Promise.all(inputNames.map(processNameQuery));
 
     return Response.json({ count: results.length, results });
   } catch (err) {
-    console.error('GET /api/lead/search-multiple error:', err);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error', detail: err.message }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    console.error("GET /api/lead/search-multiple error:", err);
+    return jsonError("Internal server error", 500, err.message);
   }
+}
+
+
+
+function isValidNamesParam(param) {
+  return param && param.trim().length >= 3;
+}
+
+function parseInputNames(raw) {
+  const splitPattern = /[\t\n]+| {2,}/;
+  const subSplitPattern = /\/| - | -|-/;
+
+  const cleaned = raw
+    .split(splitPattern)
+    .flatMap(entry =>
+      entry
+        .split(subSplitPattern)
+        .map(name => name.trim())
+        .map(stripDashD)
+        .filter(name => name.split(" ").length >= 2)
+    );
+
+  return Array.from(new Set(cleaned));
+}
+
+function stripDashD(name) {
+  return name.endsWith("-D") ? name.slice(0, -2).trim() : name;
+}
+
+async function processNameQuery(name) {
+  const parts = name.split(/\s+/);
+  let leads = [];
+  let status = "no match";
+
+  for (let i = parts.length; i > 0; i--) {
+    const sub = parts.slice(0, i).join(" ");
+    const fetched = await fetchLeadByName(sub);
+
+    if (fetched.length > 0) {
+      leads = fetched;
+      status = i === parts.length ? "exact match" : "partial match";
+      break;
+    }
+  }
+
+  return { query: name, status, leads };
+}
+
+function jsonError(message, status = 500, detail) {
+  return new Response(
+    JSON.stringify({ error: message, ...(detail && { detail }) }),
+    {
+      status,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
 }
 
 async function fetchLeadByName(name) {
