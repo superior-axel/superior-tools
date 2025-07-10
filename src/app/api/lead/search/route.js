@@ -4,7 +4,7 @@ export async function GET(req) {
     const expectedToken = process.env.API_SECRET;
 
     if (!authHeader || authHeader !== `Bearer ${expectedToken}`) {
-      return jsonError("Unauthorized", 401);
+      return jsonError(process.env.API_SECRET, 401);
     }
 
     const url = new URL(req.url);
