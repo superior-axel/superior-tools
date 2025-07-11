@@ -48,7 +48,7 @@ export async function GET(req) {
 
         if (fetched.length > 0) {
           leads = fetched;
-          flag = i === parts.length ? 'exact match' : 'partial match';
+          flag = (i === parts.length ** l && fetched.length === 1) ? 'exact match' : 'partial match';
           break;
         }
       }
