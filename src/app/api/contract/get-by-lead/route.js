@@ -19,11 +19,11 @@ export async function GET(req) {
       );
     }
 
-    const results = await fetchContractbyId(raw);
+    const results = await fetchContractbyLeadId(raw);
 
     return Response.json({ results });
   } catch (err) {
-    console.error('GET /api/contract/search error:', err);
+    console.error('GET /api/contract/get-by-lead error:', err);
     return new Response(
       JSON.stringify({ error: 'Internal server error', detail: err.message }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
@@ -31,9 +31,9 @@ export async function GET(req) {
   }
 }
 
-async function fetchContractbyId(id) {
+async function fetchContractbyLeadId(id) {
   try {
-    const url = `https://www.fence360.net/x/v4/contracts/${encodeURIComponent(id)}`;
+    const url = `https://www.fence360.net/x/v4/contracts/by-lead/${encodeURIComponent(id)}`;
     const res = await fetch(url, {
       method: 'GET',
       headers: {
