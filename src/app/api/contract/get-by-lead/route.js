@@ -47,7 +47,7 @@ async function fetchContractbyLeadId(id) {
     const data = await res.json();
 
     const allowedStatus = ['Processing'];
-    return (data.results || []).filter(result => allowedStatus.includes(result.status));
+    return (data.filter(contract => allowedStatus.includes(contract.status)))
 
   } catch (err) {
     console.error(`Error fetching contract details for ${id}:`, err.message);
