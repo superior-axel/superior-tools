@@ -2,6 +2,7 @@ export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
+    const cookie = req.headers.get("cookie") || req.headers.get("Cookie");
 
     if (authHeader !== `Bearer ${process.env.API_SECRET}`) {
       return new Response(
@@ -44,7 +45,7 @@ export async function GET(req) {
 
       for (let i = parts.length; i > 0; i--) {
         const sub = parts.slice(0, i).join(' ');
-        const fetched = await fetchLeadByName(sub);
+        const fetched = await fetchLeadByName(sub, cookie);
 
         if (fetched.length > 0) {
           leads = fetched;
@@ -66,14 +67,14 @@ export async function GET(req) {
   }
 }
 
-async function fetchLeadByName(name) {
+async function fetchLeadByName(name, cookie) {
   try {
     const url = `https://www.fence360.net/x/v2/search?q=${encodeURIComponent(name)}`;
     const res = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Cookie': process.env.FENCE360_COOKIE || '',
+        'Cookie': cookie || '',
       },
     });
 

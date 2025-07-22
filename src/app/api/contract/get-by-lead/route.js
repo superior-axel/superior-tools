@@ -2,6 +2,7 @@ export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
+    const cookie = req.headers.get("cookie") || req.headers.get("Cookie");
 
     if (authHeader !== `Bearer ${process.env.API_SECRET}`) {
       return new Response(
@@ -19,7 +20,7 @@ export async function GET(req) {
       );
     }
 
-    const results = await fetchContractbyLeadId(raw);
+    const results = await fetchContractbyLeadId(raw, cookie);
 
     return Response.json({ results });
   } catch (err) {
@@ -31,14 +32,14 @@ export async function GET(req) {
   }
 }
 
-async function fetchContractbyLeadId(id) {
+async function fetchContractbyLeadId(id, cookie) {
   try {
     const url = `https://www.fence360.net/x/v4/contracts/by-lead/${encodeURIComponent(id)}`;
     const res = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Cookie': process.env.FENCE360_COOKIE || '',
+        'Cookie': cookie || '',
       },
     });
 
