@@ -67,7 +67,7 @@ export async function GET(req) {
   }
 }
 
-async function fetchLeadByName(name, cookie) {
+export async function fetchLeadByName(name, cookie) {
   try {
     const url = `https://www.fence360.net/x/v2/search?q=${encodeURIComponent(name)}`;
     const res = await fetch(url, {

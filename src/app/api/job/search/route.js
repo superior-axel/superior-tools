@@ -32,7 +32,7 @@ export async function GET(req) {
   }
 }
 
-async function fetchJobById(id, cookie) {
+export async function fetchJobById(id, cookie) {
   try {
     const url = `https://www.fence360.net/x/v5/jobs/${encodeURIComponent(id)}`;
     const res = await fetch(url, {

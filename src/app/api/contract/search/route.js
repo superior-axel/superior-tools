@@ -32,7 +32,7 @@ export async function GET(req) {
   }
 }
 
-async function fetchContractbyId(id, cookie) {
+export async function fetchContractbyId(id, cookie) {
   try {
     const url = `https://www.fence360.net/x/v4/contracts/${encodeURIComponent(id)}`;
     const res = await fetch(url, {
