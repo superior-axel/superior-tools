@@ -1,5 +1,4 @@
 // app/api/lead/search/route.js
-import { NextRequest } from "next/server";
 
 export async function POST(req) {
   try {
@@ -42,15 +41,28 @@ export async function POST(req) {
       })
     );
 
-    let status = "not found";
-    if (results.length === 1) {
-    status = "found";
-    } else if (results.length > 1) {
-    status = "maybe";
-    }
+    // Keep only hits (>0)
+    const matches = results.filter(r => r.count > 0);
 
-    // In this case, matches is just results itself
-    const matches = results;
+    // Decide status by number of hits
+    let status = "not found";
+    if (matches.length === 1) status = "found";
+    else if (matches.length > 1) status = "maybe";
+
+    // Build a human-friendly cause summary:
+    // - If "found" (exactly 1 hit), prefer the exact hit's category (count === 1).
+    // - If "maybe" (multiple hits), list unique categories that produced hits.
+    if (status !== "not found") {
+      let causeText = "";
+      if (status === "found") {
+        const exact = matches.find(m => m.count === 1) || matches[0];
+        if (exact) causeText = ` by ${exact.category}`;
+      } else {
+        const cats = Array.from(new Set(matches.map(m => m.category)));
+        if (cats.length) causeText = ` by ${cats.join(", ")}`;
+      }
+      status = `${status}${causeText}`;
+    }
 
     return Response.json({
       status,
@@ -77,9 +89,7 @@ export async function POST(req) {
 
 export async function fetchLeadByName(name, cookie) {
   try {
-    const url = `https://www.fence360.net/x/v2/search?q=${encodeURIComponent(
-      name
-    )}`;
+    const url = `https://www.fence360.net/x/v2/search?q=${encodeURIComponent(name)}`;
     const res = await fetch(url, {
       method: "GET",
       headers: {
@@ -92,10 +102,7 @@ export async function fetchLeadByName(name, cookie) {
 
     const data = await res.json();
 
-    const allowedTrackStates = [4, 13, 14];
-    return (data.leads || []).filter((lead) =>
-      allowedTrackStates.includes(lead.track_state)
-    );
+    return (data.leads || [])
   } catch (err) {
     console.error(`Error fetching leads for ${name}:`, err.message);
     return [];
@@ -103,21 +110,25 @@ export async function fetchLeadByName(name, cookie) {
 }
 
 function sanitizeData(input) {
-  const clean = (v) =>
-    typeof v === "string" ? v.trim() : v == null ? null : String(v).trim();
+  const clean = (v) => {
+    if (v == null) return null;
+    const s = typeof v === "string" ? v.trim() : String(v).trim();
+    if (s.toLowerCase() === "null") return null; // treat literal "null" as empty
+    return s || null;
+  };
 
   return {
-    first_name: clean(input.first_name) || null,
-    last_name: clean(input.last_name) || null,
-    personal_address: clean(input.personal_address) || null,
-    personal_city: clean(input.personal_city) || null,
-    personal_state: clean(input.personal_state) || null,
-    personal_zip: clean(input.personal_zip) || null,
-    mobile_phone: clean(input.mobile_phone) || null,
-    personal_phone: clean(input.personal_phone) || null,
-    business_email: clean(input.business_email) || null,
-    personal_emails: clean(input.personal_emails) || null,
-    deep_verified_emails: clean(input.deep_verified_emails) || null,
+    first_name: clean(input.first_name),
+    last_name: clean(input.last_name),
+    personal_address: clean(input.personal_address),
+    personal_city: clean(input.personal_city),
+    personal_state: clean(input.personal_state),
+    personal_zip: clean(input.personal_zip),
+    mobile_phone: clean(input.mobile_phone),
+    personal_phone: clean(input.personal_phone),
+    business_email: clean(input.business_email),
+    personal_emails: clean(input.personal_emails),
+    deep_verified_emails: clean(input.deep_verified_emails),
   };
 }
 
@@ -135,11 +146,7 @@ function buildCandidates(data) {
 
   // address: personal_address + city
   if (data.personal_address && data.personal_city) {
-    push(
-      "address",
-      "personal_address+personal_city",
-      `${data.personal_address} ${data.personal_city}`
-    );
+    push("address", "personal_address+personal_city", `${data.personal_address} ${data.personal_city}`);
   }
 
   // emails
@@ -168,7 +175,7 @@ function splitList(value) {
     .map((s) => s.trim())
     .flatMap((s) => s.split(/\s+/g))
     .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+    .filter((s) => s.length > 0 && s.toLowerCase() !== "null");
 }
 
 function unique(arr) {
@@ -183,8 +190,8 @@ function normalizePhone(raw) {
 
 function normalizeTerm(category, term) {
   if (!term) return null;
-  const t = term.trim();
-  if (!t) return null;
+  const t = String(term).trim();
+  if (!t || t.toLowerCase() === "null") return null;
 
   if (category === "email") return t.toLowerCase();
   if (category === "phone") return normalizePhone(t);
@@ -215,8 +222,7 @@ function containsInList(value, list, isPhone = false) {
   if (!list) return false;
   const norm = isPhone ? normalizePhone(value) : value.toLowerCase();
   return splitList(list).some(
-    (item) =>
-      (isPhone ? normalizePhone(item) : item.toLowerCase()) === norm
+    (item) => (isPhone ? normalizePhone(item) : item.toLowerCase()) === norm
   );
 }
 
