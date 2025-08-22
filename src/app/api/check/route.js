@@ -42,14 +42,15 @@ export async function POST(req) {
       })
     );
 
-    const exact = results.filter((r) => r.count === 1);
-    const multi = results.filter((r) => r.count > 1);
-
     let status = "not found";
-    if (exact.length > 0) status = "found";
-    else if (multi.length > 0) status = "maybe";
+    if (results.length === 1) {
+    status = "found";
+    } else if (results.length > 1) {
+    status = "maybe";
+    }
 
-    const matches = status === "found" ? exact : status === "maybe" ? multi : [];
+    // In this case, matches is just results itself
+    const matches = results;
 
     return Response.json({
       status,
