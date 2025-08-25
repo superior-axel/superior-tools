@@ -42,23 +42,21 @@ export async function POST(req) {
     );
 
     // Keep only hits (>0)
-    const matches = results.filter(r => r.count > 0);
+    const matches = results.filter((r) => r.count > 0);
 
     // Decide status by number of hits
     let status = "not found";
     if (matches.length === 1) status = "found";
     else if (matches.length > 1) status = "maybe";
 
-    // Build a human-friendly cause summary:
-    // - If "found" (exactly 1 hit), prefer the exact hit's category (count === 1).
-    // - If "maybe" (multiple hits), list unique categories that produced hits.
+    // Build a human-friendly cause summary
     if (status !== "not found") {
       let causeText = "";
       if (status === "found") {
-        const exact = matches.find(m => m.count === 1) || matches[0];
+        const exact = matches.find((m) => m.count === 1) || matches[0];
         if (exact) causeText = ` by ${exact.category}`;
       } else {
-        const cats = Array.from(new Set(matches.map(m => m.category)));
+        const cats = Array.from(new Set(matches.map((m) => m.category)));
         if (cats.length) causeText = ` by ${cats.join(", ")}`;
       }
       status = `${status}${causeText}`;
@@ -89,7 +87,9 @@ export async function POST(req) {
 
 export async function fetchLeadByName(name, cookie) {
   try {
-    const url = `https://www.fence360.net/x/v2/search?q=${encodeURIComponent(name)}`;
+    const url = `https://www.fence360.net/x/v2/search?q=${encodeURIComponent(
+      name
+    )}`;
     const res = await fetch(url, {
       method: "GET",
       headers: {
@@ -101,8 +101,7 @@ export async function fetchLeadByName(name, cookie) {
     if (!res.ok) return [];
 
     const data = await res.json();
-
-    return (data.leads || [])
+    return data.leads || [];
   } catch (err) {
     console.error(`Error fetching leads for ${name}:`, err.message);
     return [];
@@ -113,7 +112,7 @@ function sanitizeData(input) {
   const clean = (v) => {
     if (v == null) return null;
     const s = typeof v === "string" ? v.trim() : String(v).trim();
-    if (s.toLowerCase() === "null") return null; // treat literal "null" as empty
+    if (s.toLowerCase() === "null") return null;
     return s || null;
   };
 
@@ -129,6 +128,10 @@ function sanitizeData(input) {
     business_email: clean(input.business_email),
     personal_emails: clean(input.personal_emails),
     deep_verified_emails: clean(input.deep_verified_emails),
+    owner_1: clean(input.owner_1),
+    owner_1_emails: clean(input.owner_1_emails),
+    owner_2: clean(input.owner_2),
+    owner_2_emails: clean(input.owner_2_emails),
   };
 }
 
@@ -146,13 +149,20 @@ function buildCandidates(data) {
 
   // address: personal_address + city
   if (data.personal_address && data.personal_city) {
-    push("address", "personal_address+personal_city", `${data.personal_address} ${data.personal_city}`);
+    push(
+      "address",
+      "personal_address+personal_city",
+      `${data.personal_address} ${data.personal_city}`
+    );
   }
 
-  // emails
+  // emails: business, personal, deep, owner_1_emails, owner_2_emails
   const emailVals = splitList(data.business_email)
     .concat(splitList(data.personal_emails))
-    .concat(splitList(data.deep_verified_emails));
+    .concat(splitList(data.deep_verified_emails))
+    .concat(splitList(data.owner_1_emails))
+    .concat(splitList(data.owner_2_emails));
+
   unique(emailVals)
     .map((e) => e.toLowerCase())
     .forEach((e) => push("email", whichEmailKey(e, data), e));
@@ -165,13 +175,17 @@ function buildCandidates(data) {
     .filter(Boolean);
   phoneVals.forEach((p) => push("phone", whichPhoneKey(p, data), p));
 
+  // owner names
+  if (data.owner_1) push("owner", "owner_1", data.owner_1);
+  if (data.owner_2) push("owner", "owner_2", data.owner_2);
+
   return dedupeCandidates(out);
 }
 
 function splitList(value) {
   if (!value) return [];
   return value
-    .split(/[,;]+/g)        // only split on commas or semicolons
+    .split(/[,;]+/g)
     .map((s) => s.trim())
     .filter((s) => s.length > 0 && s.toLowerCase() !== "null");
 }
@@ -181,6 +195,7 @@ function unique(arr) {
 }
 
 function normalizePhone(raw) {
+  if (!raw) return null;
   const plus = raw.trim().startsWith("+") ? "+" : "";
   const digits = raw.replace(/\D+/g, "");
   return (plus + digits).replace(/^\+?0+(?=\d)/, plus ? "+" : "");
@@ -200,10 +215,15 @@ function whichEmailKey(email, data) {
   const inBusiness = containsInList(email, data.business_email);
   const inPersonal = containsInList(email, data.personal_emails);
   const inDeep = containsInList(email, data.deep_verified_emails);
+  const inOwner1 = containsInList(email, data.owner_1_emails);
+  const inOwner2 = containsInList(email, data.owner_2_emails);
+
   const parts = [];
   if (inBusiness) parts.push("business_email");
   if (inPersonal) parts.push("personal_emails");
   if (inDeep) parts.push("deep_verified_emails");
+  if (inOwner1) parts.push("owner_1_emails");
+  if (inOwner2) parts.push("owner_2_emails");
   return parts.join("|") || "email";
 }
 
@@ -220,7 +240,8 @@ function containsInList(value, list, isPhone = false) {
   if (!list) return false;
   const norm = isPhone ? normalizePhone(value) : value.toLowerCase();
   return splitList(list).some(
-    (item) => (isPhone ? normalizePhone(item) : item.toLowerCase()) === norm
+    (item) =>
+      (isPhone ? normalizePhone(item) : item.toLowerCase()) === norm
   );
 }
 
