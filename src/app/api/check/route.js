@@ -171,9 +171,7 @@ function buildCandidates(data) {
 function splitList(value) {
   if (!value) return [];
   return value
-    .split(/[,;]+/g)
-    .map((s) => s.trim())
-    .flatMap((s) => s.split(/\s+/g))
+    .split(/[,;]+/g)        // only split on commas or semicolons
     .map((s) => s.trim())
     .filter((s) => s.length > 0 && s.toLowerCase() !== "null");
 }
